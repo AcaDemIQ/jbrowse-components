@@ -44,86 +44,93 @@ function findPosInCigar(cigar: string[], startX: number) {
   return [featX, mateX]
 }
 
+const floor = (n: number) => Math.floor(n)
+
 async function navToSynteny(feature: Feature, self: IAnyStateTreeNode) {
   const session = getSession(self)
-  const track = getContainingTrack(self)
-  const view = getContainingView(self)
-  const reg = view.dynamicBlocks.contentBlocks[0]
-  const cigar = feature.get('CIGAR')
-  const strand = feature.get('strand')
-  const regStart = reg.start
-  const regEnd = reg.end
-  const featStart = feature.get('start')
-  const featEnd = feature.get('end')
-  const mate = feature.get('mate')
-  const mateStart = mate.start
-  const mateEnd = mate.end
-  const mateAsm = mate.assemblyName
-  const mateRef = mate.refName
-  const featAsm = reg.assemblyName
-  const featRef = reg.refName
+  try {
+    const track = getContainingTrack(self)
+    const view = getContainingView(self)
+    const reg = view.dynamicBlocks.contentBlocks[0]
+    const cigar = feature.get('CIGAR')
+    const strand = feature.get('strand')
+    const inverted = strand === -1
+    const regStart = reg.start
+    const regEnd = reg.end
+    const featStart = feature.get('start')
+    const featEnd = feature.get('end')
+    const mate = feature.get('mate')
+    const mateStart = mate.start
+    const mateEnd = mate.end
+    const mateAsm = mate.assemblyName
+    const mateRef = mate.refName
+    const featAsm = reg.assemblyName
+    const featRef = reg.refName
 
-  let rMateStart: number
-  let rMateEnd: number
-  let rFeatStart: number
-  let rFeatEnd: number
+    let rMateStart: number
+    let rMateEnd: number
+    let rFeatStart: number
+    let rFeatEnd: number
 
-  if (cigar) {
-    const p = parseCigar(cigar)
-    const [fStartX, mStartX] = findPosInCigar(p, regStart - featStart)
-    const [fEndX, mEndX] = findPosInCigar(p, regEnd - featStart)
+    if (cigar) {
+      const p = parseCigar(cigar)
+      const [fStartX, mStartX] = findPosInCigar(p, regStart - featStart)
+      const [fEndX, mEndX] = findPosInCigar(p, regEnd - featStart)
 
-    // avoid multiply by 0 with strand undefined
-    const flipper = strand === -1 ? -1 : 1
-    rFeatStart = featStart + fStartX
-    rFeatEnd = featStart + fEndX
-    rMateStart = (strand === -1 ? mateEnd : mateStart) + mStartX * flipper
-    rMateEnd = (strand === -1 ? mateEnd : mateStart) + mEndX * flipper
-  } else {
-    rFeatStart = featStart
-    rFeatEnd = featEnd
-    rMateStart = mateStart
-    rMateEnd = mateEnd
+      // avoid multiply by 0 with strand undefined
+      const flipper = strand === -1 ? -1 : 1
+      rFeatStart = featStart + fStartX
+      rFeatEnd = featStart + fEndX
+      rMateStart = (strand === -1 ? mateEnd : mateStart) + mStartX * flipper
+      rMateEnd = (strand === -1 ? mateEnd : mateStart) + mEndX * flipper
+    } else {
+      rFeatStart = featStart
+      rFeatEnd = featEnd
+      rMateStart = mateStart
+      rMateEnd = mateEnd
+    }
+    const trackId = track.configuration.trackId
+
+    const view2 = session.addView('LinearSyntenyView', {
+      type: 'LinearSyntenyView',
+      views: [
+        {
+          id: `${Math.random()}`,
+          type: 'LinearGenomeView',
+          hideHeader: true,
+        },
+        {
+          id: `${Math.random()}`,
+          type: 'LinearGenomeView',
+          hideHeader: true,
+        },
+      ],
+      tracks: [
+        {
+          configuration: trackId,
+          type: 'SyntenyTrack',
+          displays: [
+            {
+              type: 'LinearSyntenyDisplay',
+              configuration: `${trackId}-LinearSyntenyDisplay`,
+            },
+          ],
+        },
+      ],
+    }) as LSV
+    const l1 = `${featRef}:${floor(rFeatStart)}-${floor(rFeatEnd)}`
+    const m1 = Math.min(rMateStart, rMateEnd)
+    const m2 = Math.max(rMateStart, rMateEnd)
+    const l2 = `${mateRef}:${floor(m1)}-${floor(m2)}${inverted ? '[rev]' : ''}`
+    await when(() => view2.width !== undefined)
+    await Promise.all([
+      view2.views[0].navToLocString(l1, featAsm),
+      view2.views[1].navToLocString(l2, mateAsm),
+    ])
+  } catch (e) {
+    console.error(e)
+    session.notify(`${e}`, 'error')
   }
-  const trackId = track.configuration.trackId
-
-  const view2 = session.addView('LinearSyntenyView', {
-    type: 'LinearSyntenyView',
-    views: [
-      {
-        id: `${Math.random()}`,
-        type: 'LinearGenomeView',
-        hideHeader: true,
-      },
-      {
-        id: `${Math.random()}`,
-        type: 'LinearGenomeView',
-        hideHeader: true,
-      },
-    ],
-    tracks: [
-      {
-        configuration: trackId,
-        type: 'SyntenyTrack',
-        displays: [
-          {
-            type: 'LinearSyntenyDisplay',
-            configuration: `${trackId}-LinearSyntenyDisplay`,
-          },
-        ],
-      },
-    ],
-  }) as LSV
-  const f = (n: number) => Math.floor(n)
-  const l1 = `${featRef}:${f(rFeatStart)}-${f(rFeatEnd)}`
-  const m1 = Math.min(rMateStart, rMateEnd)
-  const m2 = Math.max(rMateStart, rMateEnd)
-  const l2 = `${mateRef}:${f(m1)}-${f(m2)}${strand === -1 ? '[rev]' : ''}`
-  await when(() => view2.width !== undefined)
-  await Promise.all([
-    view2.views[0].navToLocString(l1, featAsm),
-    view2.views[1].navToLocString(l2, mateAsm),
-  ])
 }
 
 /**

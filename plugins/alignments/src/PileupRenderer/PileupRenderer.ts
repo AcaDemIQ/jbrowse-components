@@ -14,12 +14,12 @@ import {
   PileupLayoutSessionProps,
 } from './PileupLayoutSession'
 import { BaseFeatureDataAdapter } from '@jbrowse/core/data_adapters/BaseAdapter'
+import { readConfObject } from '@jbrowse/core/configuration'
 
 // locals
 import { fetchSequence, shouldFetchReferenceSequence } from '../util'
 import { layoutFeats } from './layoutFeatures'
 import { makeImageData } from './makeImageData'
-import { readConfObject } from '@jbrowse/core/configuration'
 
 export interface RenderArgsDeserialized extends BoxRenderArgsDeserialized {
   colorBy?: { type: string; tag?: string }
