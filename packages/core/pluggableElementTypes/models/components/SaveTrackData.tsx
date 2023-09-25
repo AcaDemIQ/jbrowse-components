@@ -15,7 +15,7 @@ import { IAnyStateTreeNode } from 'mobx-state-tree'
 import { makeStyles } from 'tss-react/mui'
 import { saveAs } from 'file-saver'
 import { observer } from 'mobx-react'
-import { Dialog, ErrorMessage, LoadingEllipses } from '@jbrowse/core/ui'
+import { Dialog, ErrorMessage } from '@jbrowse/core/ui'
 import {
   getSession,
   getContainingView,
